@@ -11,6 +11,8 @@ from .models import (
     CanvasPageContent,
     Column,
     ColumnList,
+    DeletePageContentRequest,
+    DeletePageContentResult,
     Doc,
     DocCreate,
     DocDelete,
@@ -22,6 +24,8 @@ from .models import (
     Formula,
     FormulaList,
     Page,
+    PageContentElement,
+    PageContentElementList,
     PageContentExportStatusResponse,
     PageContentUpdate,
     PageCreate,
@@ -375,6 +379,66 @@ async def create_page(
         page_content=page_content,
     )
     return await pages.create_page(client, doc_id, page_create)
+
+
+@mcp.tool(
+    description=(
+        "List all content elements on a page with their element IDs - "
+        "use this to get element IDs for surgical page updates or deletions"
+    )
+)
+async def list_page_content_elements(
+    doc_id: str,
+    page_id_or_name: str,
+) -> PageContentElementList:
+    """List all content elements on a page.
+
+    This returns individual content elements (headings, paragraphs, tables, etc.)
+    with their element IDs. These IDs can be used for:
+    - Deleting specific elements with delete_page_content_elements
+    - Inserting content after a specific element using element_id in update_page
+
+    Element IDs are prefixed with 'cl-' (e.g., 'cl-L80qn4IXoO').
+
+    Args:
+        doc_id: ID of the doc.
+        page_id_or_name: ID or name of the page.
+
+    Returns:
+        List of content elements with their IDs and types.
+    """
+    return await pages.list_page_content_elements(client, doc_id, page_id_or_name)
+
+
+@mcp.tool(
+    description=(
+        "Delete specific content elements from a page by their element IDs - "
+        "enables surgical removal without affecting other content like embedded tables/views"
+    )
+)
+async def delete_page_content_elements(
+    doc_id: str,
+    page_id_or_name: str,
+    element_ids: list[str],
+) -> DeletePageContentResult:
+    """Delete specific content elements from a page.
+
+    This enables surgical removal of individual elements (headings, paragraphs, etc.)
+    without affecting other page content like embedded tables/views.
+
+    Get element IDs using list_page_content_elements first.
+    Element IDs are prefixed with 'cl-' (e.g., 'cl-L80qn4IXoO').
+
+    Args:
+        doc_id: ID of the doc.
+        page_id_or_name: ID or name of the page.
+        element_ids: List of element IDs to delete.
+
+    Returns:
+        Result with the deleted element IDs.
+    """
+    delete_request = DeletePageContentRequest(element_ids=element_ids)
+    return await pages.delete_page_content_elements(client, doc_id, page_id_or_name, delete_request)
 
 
 # ============================================================================

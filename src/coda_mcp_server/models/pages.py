@@ -128,6 +128,15 @@ class PageContentUpdate(CodaBaseModel):
 
     insertion_mode: Literal["append", "replace"] = Field(..., description="Mode for inserting content.")
     canvas_content: PageContent = Field(..., description="The canvas content to insert.")
+    element_id: str | None = Field(
+        None,
+        description=(
+            "Element ID to target for insertion. When provided with insertion_mode='append', "
+            "content will be inserted after this element. Get element IDs from list_page_content_elements. "
+            "This enables surgical updates without overwriting the entire page."
+        ),
+        examples=["cl-L80qn4IXoO"],
+    )
 
 
 class PageUpdate(CodaBaseModel):
@@ -173,3 +182,44 @@ class PageDeleteResult(DocumentMutateResponse):
     """The result of a page deletion."""
 
     id: str = Field(..., description="ID of the page to be deleted.", examples=["canvas-tuVwxYz"])
+
+
+# ============================================================================
+# Page Content Element Models (for surgical updates)
+# ============================================================================
+
+
+class PageContentElement(CodaBaseModel):
+    """An individual content element on a page.
+
+    Elements have IDs prefixed with 'cl-' (e.g., 'cl-L80qn4IXoO').
+    These IDs can be used with delete_page_content_elements or
+    as element_id in PageContentUpdate for surgical page updates.
+    """
+
+    id: str = Field(..., description="Element ID (prefixed with 'cl-').", examples=["cl-L80qn4IXoO"])
+    type: str = Field(..., description="Type of element (e.g., 'text', 'heading', 'grid').")
+    content: str | None = Field(None, description="Text content of the element, if applicable.")
+
+
+class PageContentElementList(CodaBaseModel):
+    """List of content elements on a page."""
+
+    items: list[PageContentElement] = Field(..., description="List of content elements.")
+    href: str | None = Field(None, description="API link to these results.")
+
+
+class DeletePageContentRequest(CodaBaseModel):
+    """Request payload for deleting specific content elements from a page."""
+
+    element_ids: list[str] = Field(
+        ...,
+        description="List of element IDs to delete (prefixed with 'cl-').",
+        examples=[["cl-L80qn4IXoO", "cl-M91rp5JYpP"]],
+    )
+
+
+class DeletePageContentResult(CodaBaseModel):
+    """Result of deleting content elements from a page."""
+
+    deleted_element_ids: list[str] = Field(..., description="IDs of successfully deleted elements.")

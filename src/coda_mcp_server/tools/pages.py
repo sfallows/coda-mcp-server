@@ -10,7 +10,11 @@ from ..models.exports import (
     PageContentExportStatusResponse,
 )
 from ..models.pages import (
+    DeletePageContentRequest,
+    DeletePageContentResult,
     Page,
+    PageContentElement,
+    PageContentElementList,
     PageCreate,
     PageCreateResult,
     PageDeleteResult,
@@ -183,3 +187,92 @@ async def create_page(
         json=page_create,
     )
     return PageCreateResult.model_validate(result)
+
+
+# ============================================================================
+# Page Content Element Tools (for surgical updates)
+# ============================================================================
+
+
+async def list_page_content_elements(
+    client: CodaClient,
+    doc_id: str,
+    page_id_or_name: str,
+) -> PageContentElementList:
+    """List all content elements on a page.
+
+    This returns the individual content elements (headings, paragraphs, tables, etc.)
+    with their element IDs. These IDs can be used for surgical page updates:
+    - Delete specific elements with delete_page_content_elements
+    - Insert content after a specific element using element_id in update_page
+
+    Element IDs are prefixed with 'cl-' (e.g., 'cl-L80qn4IXoO').
+
+    Args:
+        client: The Coda client instance.
+        doc_id: ID of the doc.
+        page_id_or_name: ID or name of the page.
+
+    Returns:
+        PageContentElementList with all content elements and their IDs.
+    """
+    result = await client.request(Method.GET, f"docs/{doc_id}/pages/{page_id_or_name}/content")
+
+    # Parse the response - Coda returns content in various formats
+    # We need to extract element IDs from the response
+    elements = []
+
+    if isinstance(result, dict):
+        # Check for items array (standard list response)
+        if "items" in result:
+            for item in result["items"]:
+                element = PageContentElement(
+                    id=item.get("id", ""),
+                    type=item.get("type", "unknown"),
+                    content=item.get("content"),
+                )
+                elements.append(element)
+        # Check for content field (HTML/markdown export response)
+        elif "content" in result:
+            # Return a single element representing the page content
+            elements.append(
+                PageContentElement(
+                    id="page-content",
+                    type="html",
+                    content=result.get("content"),
+                )
+            )
+
+    return PageContentElementList(items=elements, href=result.get("href") if isinstance(result, dict) else None)
+
+
+async def delete_page_content_elements(
+    client: CodaClient,
+    doc_id: str,
+    page_id_or_name: str,
+    delete_request: DeletePageContentRequest,
+) -> DeletePageContentResult:
+    """Delete specific content elements from a page.
+
+    This enables surgical removal of individual elements (headings, paragraphs, etc.)
+    without affecting other page content like embedded tables/views.
+
+    Get element IDs using list_page_content_elements first.
+
+    Args:
+        client: The Coda client instance.
+        doc_id: ID of the doc.
+        page_id_or_name: ID or name of the page.
+        delete_request: DeletePageContentRequest with element IDs to delete.
+
+    Returns:
+        DeletePageContentResult with the deleted element IDs.
+    """
+    # The Coda API uses DELETE with a body containing elementIds
+    await client.request(
+        Method.DELETE,
+        f"docs/{doc_id}/pages/{page_id_or_name}/content",
+        json=delete_request,
+    )
+
+    return DeletePageContentResult(deleted_element_ids=delete_request.element_ids)

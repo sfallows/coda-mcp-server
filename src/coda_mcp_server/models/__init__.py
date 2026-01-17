@@ -72,9 +72,13 @@ from .formulas import (
 # Import page-related models
 from .pages import (
     CanvasPageContent,
+    DeletePageContentRequest,
+    DeletePageContentResult,
     EmbedPageContent,
     Page,
     PageContent,
+    PageContentElement,
+    PageContentElementList,
     PageContentUpdate,
     PageCreate,
     PageCreateResult,
@@ -261,6 +265,11 @@ __all__ = [
     "PageCreateResult",
     "PageUpdateResult",
     "PageDeleteResult",
+    # Page Content Elements (for surgical updates)
+    "PageContentElement",
+    "PageContentElementList",
+    "DeletePageContentRequest",
+    "DeletePageContentResult",
     # Exports
     "BeginPageContentExportRequest",
     "BeginPageContentExportResponse",
